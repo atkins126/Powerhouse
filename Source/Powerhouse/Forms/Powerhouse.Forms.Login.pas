@@ -43,9 +43,8 @@ type
     Label3: TLabel;
     lnkForgotPassword: TLinkLabel;
     btnLogin: TButton;
-    procedure FormCreate(Sender: TObject);
     procedure btnLoginClick(Sender: TObject);
-    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
 
   public
     procedure Enable(); override;
@@ -58,16 +57,6 @@ var
 implementation
 
 {$R *.dfm}
-
-procedure TPhfLogin.FormCreate(Sender: TObject);
-begin
-  g_Database := PhDatabase.Create('Assets/PowerhouseDb.mdb');
-end;
-
-procedure TPhfLogin.FormShow(Sender: TObject);
-begin
-  g_HomeForm.Disable();
-end;
 
 procedure TPhfLogin.btnLoginClick(Sender: TObject);
 var
@@ -103,7 +92,7 @@ begin
         PhLogger.Info('Welcome %s %s!', [g_CurrentUser.GetForenames(),
           g_CurrentUser.GetSurname()]);
 
-        TransitionForms(@Self, @g_HomeForm);
+        TransitionForms(@g_HomeForm);
 
         // TODO: Load appliances from JSON
         // TODO: Perform post-login stuff
@@ -122,6 +111,11 @@ begin
 
     TblUsers.First();
   end;
+end;
+
+procedure TPhfLogin.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Quit();
 end;
 
 procedure TPhfLogin.Enable();
