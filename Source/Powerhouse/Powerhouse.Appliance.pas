@@ -27,107 +27,219 @@ unit Powerhouse.Appliance;
 interface
 
 uses
-  System.SysUtils, System.StrUtils, System.Math, Powerhouse.Database,
-  Powerhouse.Logger;
+  System.SysUtils, System.StrUtils, System.Math, System.Variants,
+  Powerhouse.Types, Powerhouse.Database, Powerhouse.Logger;
 
 type
   PhAppliance = class
   public
-    constructor Create(id: uint32); overload;
-    constructor Create(name: string; watt, ic, iv, cph: real); overload;
+    constructor Create(const guid: PhGUID);
 
-    function CalculateCostPerHour(): real;
+    class function CreateAppliance(const name, manufacturer,
+      batteryKind: string; const voltage, amperage, activePower, standbyPower,
+      inputPower, outputPower, frequency, powerFactor, batterySize: float;
+      const energyRating: int; const surgeProtection: bool): PhAppliance;
 
-    function GetID(): uint32;
+    function CalculateCostPerHour(): float;
+
+    function GetGUID(): PhGUID;
+
     function GetName(): string;
+    procedure SetName(const name: string);
 
-    function GetWattage(): real;
-    procedure SetWattage(newWatt: real);
+    function GetManufacturer(): string;
+    procedure SetManufacturer(const manufacturer: string);
 
-    function GetInputCurrent(): real;
-    procedure SetInputCurrent(newIc: real);
+    function GetVoltage(): float;
+    procedure SetVoltage(const voltage: float);
 
-    function GetInputVoltage(): real;
-    procedure SetInputVoltage(newIv: real);
+    function GetAmperage(): float;
+    procedure SetAmperage(const amperage: float);
+
+    function GetActivePower(): float;
+    procedure SetActivePower(const activePower: float);
+
+    function GetStandbyPower(): float;
+    procedure SetStandbyPower(const standbyPower: float);
+
+    function GetInputPower(): float;
+    procedure SetInputPower(const inputPower: float);
+
+    function GetOutputPower(): float;
+    procedure SetOutputPower(const outputPower: float);
+
+    function GetFrequency(): float;
+    procedure SetFrequency(const frequency: float);
+
+    function GetEnergyRating(): int;
+    procedure SetEnegeryRating(const rating: int);
+
+    function GetPowerFactor(): float;
+    procedure SetPowerfactor(const factor: float);
+
+    function GetBatterySize(): float;
+    procedure SetBatterySize(const size: float);
+
+    function GetBatteryKind(): string;
+    procedure SetBatteryKind(const kind: string);
+
+    function GetSurgeProtection(): bool;
+    procedure SetSurgeProtection(const surgeProtection: bool);
 
   private
+    class function FindAppliance(const guid: PhGUID): bool;
+    class function FromDatabase(const field: string): Variant;
+
     procedure UpdateInDatabase();
 
   private
-    m_ID: uint32;
+    m_GUID: PhGUID;
     m_Name: string;
-
-    m_Wattage: real;
-    m_InputCurrent: real;
-    m_InputVoltage: real;
-    m_CostPerHour: real;
+    m_Manufacturer: string;
+    m_Voltage: float;
+    m_Amperage: float;
+    m_ActivePower: float;
+    m_StandbyPower: float;
+    m_InputPower: float;
+    m_OutputPower: float;
+    m_Frequency: float;
+    m_EnergyRating: int;
+    m_PowerFactor: float;
+    m_BatterySize: float;
+    m_BatteryKind: string; // TODO: Use an enumerated type
+    m_SurgeProtection: bool;
   end;
 
 type
   PhAppliances = TArray<PhAppliance>;
 
 const
-  TBL_FIELD_NAME_APPLIANCES_PK: string = 'ApplianceID';
-  TBL_FIELD_NAME_APPLIANCES_NAME: string = 'ApplianceName';
-  TBL_FIELD_NAME_APPLIANCES_WATTAGE: string = 'Wattage';
-  TBL_FIELD_NAME_APPLIANCES_INPUT_CURRENT: string = 'InputCurrent';
-  TBL_FIELD_NAME_APPLIANCES_INPUT_VOLTAGE: string = 'InputVoltage';
-  TBL_FIELD_NAME_APPLIANCES_COST_PER_HOUR: string = 'CostPerHour';
+  PH_TBL_FIELD_NAME_APPLIANCES_PK = 'ApplianceGUID';
+  PH_TBL_FIELD_NAME_APPLIANCES_NAME = 'ApplianceName';
+  PH_TBL_FIELD_NAME_APPLIANCES_MANUFACTURER = 'Manufacturer';
+  PH_TBL_FIELD_NAME_APPLIANCES_VOLTAGE = 'Voltage';
+  PH_TBL_FIELD_NAME_APPLIANCES_AMPERAGE = 'Amperage';
+  PH_TBL_FIELD_NAME_APPLIANCES_ACTIVE_POWER = 'ActivePowerConsumption';
+  PH_TBL_FIELD_NAME_APPLIANCES_STANDBY_POWER = 'StandbyPowerConsumption';
+  PH_TBL_FIELD_NAME_APPLIANCES_INPUT_POWER = 'InputPower';
+  PH_TBL_FIELD_NAME_APPLIANCES_OUTPUT_POWER = 'OutputPower';
+  PH_TBL_FIELD_NAME_APPLIANCES_FREQUENCY = 'Frequency';
+  PH_TBL_FIELD_NAME_APPLIANCES_ENERGY_RATING = 'EnergyEfficiencyRating';
+  PH_TBL_FIELD_NAME_APPLIANCES_POWER_FACTOR = 'PowerFactor';
+  PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_SIZE = 'BatterySize';
+  PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_KIND = 'BatteryKind';
+  PH_TBL_FIELD_NAME_APPLIANCES_SURGE_PROTECTION = 'SurgeProtection';
 
 implementation
 
-constructor PhAppliance.Create(id: uint32);
+constructor PhAppliance.Create(const guid: PhGUID);
+var
+  v: Variant;
 begin
-  m_ID := id;
+  m_GUID := guid;
 
-  with g_Database do
+  if FindAppliance(m_GUID) then
   begin
-    TblAppliances.First();
+    m_Name := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_NAME);
+    m_Manufacturer := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_MANUFACTURER);
+    m_Voltage := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_VOLTAGE);
+    m_Amperage := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_AMPERAGE);
+    m_ActivePower := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_ACTIVE_POWER);
+    m_StandbyPower := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_STANDBY_POWER);
+    m_InputPower := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_INPUT_POWER);
+    m_Frequency := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_FREQUENCY);
+    m_EnergyRating := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_ENERGY_RATING);
+    m_PowerFactor := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_POWER_FACTOR);
+    m_SurgeProtection :=
+      FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_SURGE_PROTECTION);
 
-    // Find the record in the table where ApplianceID = m_ID.
-    while not Eof do
-    begin
-      if m_ID = TblAppliances[TBL_FIELD_NAME_APPLIANCES_PK] then
-        break;
+    v := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_OUTPUT_POWER);
+    if not VarIsNull(v) then
+      m_OutputPower := v
+    else
+      m_OutputPower := -1.0;
 
-      TblAppliances.Next();
-    end;
+    v := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_SIZE);
+    if not VarIsNull(v) then
+      m_BatterySize := v
+    else
+      m_BatterySize := -1.0;
 
-    m_Name := TblAppliances[TBL_FIELD_NAME_APPLIANCES_NAME];
-    m_Wattage := TblAppliances[TBL_FIELD_NAME_APPLIANCES_WATTAGE];
-    m_InputCurrent := TblAppliances[TBL_FIELD_NAME_APPLIANCES_INPUT_CURRENT];
-    m_InputVoltage := TblAppliances[TBL_FIELD_NAME_APPLIANCES_INPUT_VOLTAGE];
-    m_CostPerHour := TblAppliances[TBL_FIELD_NAME_APPLIANCES_COST_PER_HOUR];
+    v := FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_KIND);
+    if not VarIsNull(v) then
+      m_BatteryKind := v
+    else
+      m_BatteryKind := '';
+  end
+  else
+  begin
+    m_Name := '';
+    m_Manufacturer := '';
+    m_Voltage := 0.0;
+    m_Amperage := 0.0;
+    m_ActivePower := 0.0;
+    m_StandbyPower := 0.0;
+    m_InputPower := 0.0;
+    m_OutputPower := 0.0;
+    m_Frequency := 0.0;
+    m_EnergyRating := 0;
+    m_PowerFactor := 0.0;
+    m_BatterySize := 0.0;
+    m_BatteryKind := '';
+    m_SurgeProtection := false;
   end;
-end;
 
-constructor PhAppliance.Create(name: string; watt, ic, iv, cph: real);
-begin
-  // If this constructor is invoked it is assumed that the program is attempting to create a new
-  // appliance to be inserted into the database, therefore the id of this instance is being set
-  // to the next valid id, i.e: ApplianceID of the last record in tblAppliances + 1, so as to not
-  // cause any insert anomalies.
-
-  g_Database.TblAppliances.Last();
-  m_ID := g_Database.TblAppliances[TBL_FIELD_NAME_APPLIANCES_PK] + 1;
   g_Database.TblAppliances.First();
-
-  m_Name := name;
-  m_Wattage := watt;
-  m_InputCurrent := ic;
-  m_InputVoltage := iv;
-  m_CostPerHour := cph;
 end;
 
-function PhAppliance.CalculateCostPerHour(): real;
+class function PhAppliance.CreateAppliance(const name, manufacturer,
+  batteryKind: string; const voltage, amperage, activePower, standbyPower,
+  inputPower, outputPower, frequency, powerFactor, batterySize: float;
+  const energyRating: int; const surgeProtection: bool): PhAppliance;
+var
+  query: string;
+  guid: PhGUID;
+  e: Exception;
+begin
+  guid := PhGUID.Create();
+
+  query := Format('INSERT INTO %s (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ' +
+    '%s, %s, %s, %s) VALUES (%d, ''%s'', ''%s'', %f, %f, %f, %f, %f, %f, %f, ' +
+    '%d, %f, ''%s'', %s);', [PH_TBL_NAME_APPLIANCES,
+    PH_TBL_FIELD_NAME_APPLIANCES_PK, PH_TBL_FIELD_NAME_APPLIANCES_NAME,
+    PH_TBL_FIELD_NAME_APPLIANCES_MANUFACTURER,
+    PH_TBL_FIELD_NAME_APPLIANCES_VOLTAGE, PH_TBL_FIELD_NAME_APPLIANCES_AMPERAGE,
+    PH_TBL_FIELD_NAME_APPLIANCES_ACTIVE_POWER,
+    PH_TBL_FIELD_NAME_APPLIANCES_STANDBY_POWER,
+    PH_TBL_FIELD_NAME_APPLIANCES_INPUT_POWER,
+    PH_TBL_FIELD_NAME_APPLIANCES_OUTPUT_POWER,
+    PH_TBL_FIELD_NAME_APPLIANCES_FREQUENCY,
+    PH_TBL_FIELD_NAME_APPLIANCES_ENERGY_RATING,
+    PH_TBL_FIELD_NAME_APPLIANCES_POWER_FACTOR,
+    PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_SIZE,
+    PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_KIND,
+    PH_TBL_FIELD_NAME_APPLIANCES_SURGE_PROTECTION, guid.ToString(), name,
+    manufacturer, voltage, amperage, activePower, standbyPower, inputPower,
+    outputPower, frequency, energyRating, powerFactor, batterySize, batteryKind,
+    BoolToStr(surgeProtection, true)]);
+
+  e := g_Database.RunQuery(query);
+
+  if e <> nil then
+    PhLogger.Error('Error adding new appliance to database: %s', [e.Message]);
+
+  Result := Create(guid);
+end;
+
+function PhAppliance.CalculateCostPerHour(): float;
 begin
   // TODO: Implement this.
   Result := 0;
 end;
 
-function PhAppliance.GetID(): uint32;
+function PhAppliance.GetGUID(): PhGUID;
 begin
-  Result := m_ID;
+  Result := m_GUID;
 end;
 
 function PhAppliance.GetName(): string;
@@ -135,40 +247,191 @@ begin
   Result := m_Name;
 end;
 
-function PhAppliance.GetWattage(): real;
+procedure PhAppliance.SetName(const name: string);
 begin
-  Result := m_Wattage;
-end;
-
-procedure PhAppliance.SetWattage(newWatt: real);
-begin
-  m_Wattage := newWatt;
+  m_Name := name;
 
   UpdateInDatabase();
 end;
 
-function PhAppliance.GetInputCurrent(): real;
+function PhAppliance.GetManufacturer(): string;
 begin
-  Result := m_InputCurrent;
+  Result := m_Manufacturer;
 end;
 
-procedure PhAppliance.SetInputCurrent(newIc: real);
+procedure PhAppliance.SetManufacturer(const manufacturer: string);
 begin
-  m_InputCurrent := newIc;
+  m_Manufacturer := manufacturer;
 
   UpdateInDatabase();
 end;
 
-function PhAppliance.GetInputVoltage(): real;
+function PhAppliance.GetVoltage(): float;
 begin
-  Result := m_InputVoltage;
+  Result := m_Voltage;
 end;
 
-procedure PhAppliance.SetInputVoltage(newIv: real);
+procedure PhAppliance.SetVoltage(const voltage: float);
 begin
-  m_InputVoltage := newIv;
+  m_Voltage := voltage;
 
   UpdateInDatabase();
+end;
+
+function PhAppliance.GetAmperage(): float;
+begin
+  Result := m_Amperage;
+end;
+
+procedure PhAppliance.SetAmperage(const amperage: float);
+begin
+  m_Amperage := amperage;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetActivePower(): float;
+begin
+  Result := m_ActivePower;
+end;
+
+procedure PhAppliance.SetActivePower(const activePower: float);
+begin
+  m_ActivePower := activePower;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetStandbyPower(): float;
+begin
+  Result := m_StandbyPower;
+end;
+
+procedure PhAppliance.SetStandbyPower(const standbyPower: float);
+begin
+  m_StandbyPower := standbyPower;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetInputPower(): float;
+begin
+  Result := m_InputPower;
+end;
+
+procedure PhAppliance.SetInputPower(const inputPower: float);
+begin
+  m_InputPower := inputPower;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetOutputPower(): float;
+begin
+  Result := m_OutputPower;
+end;
+
+procedure PhAppliance.SetOutputPower(const outputPower: float);
+begin
+  m_OutputPower := outputPower;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetFrequency(): float;
+begin
+  Result := m_Frequency;
+end;
+
+procedure PhAppliance.SetFrequency(const frequency: float);
+begin
+  m_Frequency := frequency;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetEnergyRating(): int;
+begin
+  Result := m_EnergyRating;
+end;
+
+procedure PhAppliance.SetEnegeryRating(const rating: int);
+begin
+  m_EnergyRating := rating;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetPowerFactor(): float;
+begin
+  Result := m_PowerFactor;
+end;
+
+procedure PhAppliance.SetPowerfactor(const factor: float);
+begin
+  m_PowerFactor := factor;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetBatterySize(): float;
+begin
+  Result := m_BatterySize;
+end;
+
+procedure PhAppliance.SetBatterySize(const size: float);
+begin
+  m_BatterySize := size;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetBatteryKind(): string;
+begin
+  Result := m_BatteryKind;
+end;
+
+procedure PhAppliance.SetBatteryKind(const kind: string);
+begin
+  m_BatteryKind := kind;
+
+  UpdateInDatabase();
+end;
+
+function PhAppliance.GetSurgeProtection(): bool;
+begin
+  Result := m_SurgeProtection;
+end;
+
+procedure PhAppliance.SetSurgeProtection(const surgeProtection: bool);
+begin
+  m_SurgeProtection := surgeProtection;
+
+  UpdateInDatabase();
+end;
+
+class function PhAppliance.FindAppliance(const guid: PhGUID): bool;
+begin
+  Result := false;
+
+  with g_Database do
+  begin
+    TblAppliances.First();
+
+    while not TblAppliances.Eof do
+    begin
+      Result := guid = FromDatabase(PH_TBL_FIELD_NAME_APPLIANCES_PK);
+      if Result then
+        break;
+
+      TblAppliances.Next();
+    end;
+  end;
+end;
+
+class function PhAppliance.FromDatabase(const field: string): Variant;
+begin
+  Result := g_Database.TblAppliances[field];
 end;
 
 procedure PhAppliance.UpdateInDatabase();
@@ -177,13 +440,24 @@ var
   e: Exception;
 begin
   sQuery := Format('UPDATE %s' + #13#10 +
-    'SET %s = ''%s'', %s = %f, %s = %f, %s = %f, %s = %f' + #13#10 +
-    'WHERE %s = %d', [TBL_NAME_APPLIANCES, TBL_FIELD_NAME_APPLIANCES_NAME,
-    m_Name, TBL_FIELD_NAME_APPLIANCES_WATTAGE, m_Wattage,
-    TBL_FIELD_NAME_APPLIANCES_INPUT_CURRENT, m_InputCurrent,
-    TBL_FIELD_NAME_APPLIANCES_INPUT_VOLTAGE, m_InputVoltage,
-    TBL_FIELD_NAME_APPLIANCES_COST_PER_HOUR, m_CostPerHour,
-    TBL_FIELD_NAME_APPLIANCES_PK, m_ID]);
+    'SET %s = ''%s'', %s = ''%s'', %s = %f, %s = %f, %s = %f, %s = %f, %s = %f, '
+    + '%s = %f, %s = %f, %s = %d, %s = %f, %s = %f, %s = ''%s'', %s = %s' +
+    #13#10 + 'WHERE %s = %d', [PH_TBL_NAME_APPLIANCES,
+    PH_TBL_FIELD_NAME_APPLIANCES_NAME, m_Name,
+    PH_TBL_FIELD_NAME_APPLIANCES_MANUFACTURER, m_Manufacturer,
+    PH_TBL_FIELD_NAME_APPLIANCES_VOLTAGE, m_Voltage,
+    PH_TBL_FIELD_NAME_APPLIANCES_AMPERAGE, m_Amperage,
+    PH_TBL_FIELD_NAME_APPLIANCES_ACTIVE_POWER, m_ActivePower,
+    PH_TBL_FIELD_NAME_APPLIANCES_STANDBY_POWER, m_StandbyPower,
+    PH_TBL_FIELD_NAME_APPLIANCES_INPUT_POWER, m_InputPower,
+    PH_TBL_FIELD_NAME_APPLIANCES_OUTPUT_POWER, m_OutputPower,
+    PH_TBL_FIELD_NAME_APPLIANCES_FREQUENCY, m_Frequency,
+    PH_TBL_FIELD_NAME_APPLIANCES_ENERGY_RATING, m_EnergyRating,
+    PH_TBL_FIELD_NAME_APPLIANCES_POWER_FACTOR, m_PowerFactor,
+    PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_SIZE, m_BatterySize,
+    PH_TBL_FIELD_NAME_APPLIANCES_BATTERY_KIND, m_BatteryKind,
+    PH_TBL_FIELD_NAME_APPLIANCES_SURGE_PROTECTION, BoolToStr(m_SurgeProtection,
+    true), PH_TBL_FIELD_NAME_APPLIANCES_PK, m_GUID.ToString()]);
 
   e := g_Database.RunQuery(sQuery);
 

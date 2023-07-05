@@ -28,14 +28,17 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
-  Powerhouse.Form, Powerhouse.Forms.Login, Powerhouse.Forms.Home,
-  Powerhouse.Database;
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ComCtrls, Powerhouse.Types, Powerhouse.Database,
+  Powerhouse.Form, Powerhouse.Forms.Home, Powerhouse.Forms.Login,
+  Powerhouse.Forms.Registration;
 
 type
   TPhfMain = class(PhForm)
+    edtGUID: TEdit;
+    btnGUID: TButton;
     procedure FormCreate(Sender: TObject);
+    procedure btnGUIDClick(Sender: TObject);
 
   public
     procedure Enable(); override;
@@ -60,7 +63,7 @@ begin
   Application.CreateForm(TPhfHome, g_HomeForm);
 
   SetFormStyle(@g_LoginForm);
-  SetFormStyle(@g_HomeForm);
+SetFormStyle(@g_HomeForm);
 
   g_HomeForm.Disable();
 
@@ -74,6 +77,11 @@ begin
   Self.Show();
 end;
 
+procedure TPhfMain.btnGUIDClick(Sender: TObject);
+begin
+  edtGUID.Text := PhGUID.Create().ToString();
+end;
+
 procedure TPhfMain.Disable();
 begin
   inherited;
@@ -83,7 +91,7 @@ end;
 
 procedure TPhfMain.SetFormStyle(const formPtr: PhFormPtr);
 var
-  oldStyle, newStyle: integer;
+  oldStyle, newStyle: int;
 begin
   formPtr.BorderStyle := bsSingle;
   formPtr.FormStyle := fsNormal;

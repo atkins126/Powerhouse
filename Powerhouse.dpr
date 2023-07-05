@@ -32,13 +32,19 @@ uses
     in 'Source\Powerhouse\Forms\Powerhouse.Forms.Login.pas' {g_LoginForm} ,
   Powerhouse.Forms.Home
     in 'Source\Powerhouse\Forms\Powerhouse.Forms.Home.pas' {g_HomeForm} ,
+  Powerhouse.Forms.Registration
+    in 'Source\Powerhouse\Forms\Powerhouse.Forms.Registration.pas' {g_RegistrationForm} ,
   Powerhouse.Database in 'Source\Powerhouse\Powerhouse.Database.pas',
   Powerhouse.Appliance in 'Source\Powerhouse\Powerhouse.Appliance.pas',
   Powerhouse.User in 'Source\Powerhouse\Powerhouse.User.pas',
   Powerhouse.JsonSerializer
     in 'Source\Powerhouse\Powerhouse.JsonSerializer.pas',
   Powerhouse.Logger in 'Source\Powerhouse\Powerhouse.Logger.pas',
-  Powerhouse.Form in 'Source\Powerhouse\Powerhouse.Form.pas';
+  Powerhouse.Form in 'Source\Powerhouse\Powerhouse.Form.pas',
+  Powerhouse.FileStream in 'Source\Powerhouse\Powerhouse.FileStream.pas',
+  Powerhouse.SaveData in 'Source\Powerhouse\Powerhouse.SaveData.pas',
+  Powerhouse.Validator in 'Source\Powerhouse\Powerhouse.Validator.pas',
+  Powerhouse.Types in 'Source\Powerhouse\Powerhouse.Types.pas';
 
 {$R *.res}
 

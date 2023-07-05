@@ -28,24 +28,31 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Powerhouse.Form;
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Powerhouse.Types, Powerhouse.Form,
+  Powerhouse.Database, Powerhouse.Appliance, Powerhouse.User;
 
 type
   TPhfHome = class(PhForm)
-    tbcHome: TTabControl;
     lstAppliances: TListBox;
     pnlApplianceInformation: TPanel;
     Label1: TLabel;
     btnModifyAppliance: TButton;
     pnlHomeForm: TPanel;
     Label3: TLabel;
+    pgcHome: TPageControl;
+    tabAppliances: TTabSheet;
+    tabInsights: TTabSheet;
+    tabCalculator: TTabSheet;
+    tabAccount: TTabSheet;
+    tabHelp: TTabSheet;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
 
   public
     procedure Enable(); override;
-    procedure Disable(); override;
+
+  private
+    procedure DisplayUserAppliances(var refUser: PhUser);
   end;
 
 var
@@ -66,14 +73,25 @@ begin
 
   Self.Enabled := true;
   Self.Show();
+
+  DisplayUserAppliances(g_CurrentUser);
+
+  GetParentForm(
+    procedure(parentPtr: PhFormPtr)
+    begin
+      ShowMessage(parentPtr.Caption);
+    end);
 end;
 
-procedure TPhfHome.Disable();
+procedure TPhfHome.DisplayUserAppliances(var refUser: PhUser);
+var
+  appliance: PhAppliance;
+  appliances: PhAppliances;
 begin
-  inherited;
+  refUser.GetAppliances(appliances);
 
-  Self.Hide();
-  Self.Enabled := false;
+  for appliance in appliances do
+    lstAppliances.Items.Add(appliance.GetName());
 end;
 
 end.

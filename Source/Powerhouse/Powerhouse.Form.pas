@@ -28,25 +28,28 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls;
+  System.Classes, System.SyncObjs, Vcl.Graphics, Vcl.Controls, Vcl.Forms,
+  Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Powerhouse.Types;
 
 type
   PhFormPtr = ^PhForm;
+  PhOnGetParentProc = reference to procedure(parentPtr: PhFormPtr);
 
   PhForm = class(TForm)
   public
-    procedure Enable(); virtual; abstract;
-    procedure Disable(); virtual; abstract;
+    procedure Enable(); virtual;
+    procedure Disable(); virtual;
 
-    class procedure TransitionForms(const oldForm, newForm: PhFormPtr);
-      overload;
+    procedure EnableModal(); virtual;
+    procedure DisableModal(); virtual;
+
+    procedure TransitionForms(const oldForm, newForm: PhFormPtr); overload;
     procedure TransitionForms(const newForm: PhFormPtr); overload;
 
     procedure Quit();
 
-    function GetParentForm(): PhFormPtr;
-    procedure SetParentForm(parentPtr: PhFormPtr);
+    procedure GetParentForm(const onGetParentProc: PhOnGetParentProc);
+    procedure SetParentForm(const parentPtr: PhFormPtr);
 
   protected
     m_Parent: PhFormPtr;
@@ -54,7 +57,31 @@ type
 
 implementation
 
-class procedure PhForm.TransitionForms(const oldForm, newForm: PhFormPtr);
+procedure PhForm.Enable();
+begin
+  Self.Enabled := true;
+  Self.Show();
+end;
+
+procedure PhForm.Disable();
+begin
+  Self.Hide();
+  Self.Enabled := false;
+end;
+
+procedure PhForm.EnableModal();
+begin
+  Self.Enabled := true;
+  Self.ShowModal();
+end;
+
+procedure PhForm.DisableModal();
+begin
+  Close();
+  Self.Enabled := false;
+end;
+
+procedure PhForm.TransitionForms(const oldForm, newForm: PhFormPtr);
 begin
   oldForm.Disable();
 
@@ -67,12 +94,19 @@ begin
   TransitionForms(@Self, newForm);
 end;
 
-function PhForm.GetParentForm(): PhFormPtr;
+procedure PhForm.GetParentForm(const onGetParentProc: PhOnGetParentProc);
+var
+  mutex: TMutex;
 begin
-  Result := m_Parent;
+  mutex := TMutex.Create(nil, false, 'PhForm.GetParentForm_Mutex');
+
+  mutex.Acquire();
+  onGetParentProc(m_Parent);
+  mutex.Release();
+  mutex.Free();
 end;
 
-procedure PhForm.SetParentForm(parentPtr: PhFormPtr);
+procedure PhForm.SetParentForm(const parentPtr: PhFormPtr);
 begin
   m_Parent := parentPtr;
 end;

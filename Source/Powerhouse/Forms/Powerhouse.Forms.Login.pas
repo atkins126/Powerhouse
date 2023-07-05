@@ -28,10 +28,11 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Powerhouse.Form, Powerhouse.Database, Powerhouse.Appliance, Powerhouse.User,
-  Powerhouse.JsonSerializer, Powerhouse.Logger, Powerhouse.Forms.Home;
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.ExtCtrls, Vcl.StdCtrls, Powerhouse.Types, Powerhouse.Form,
+  Powerhouse.Database, Powerhouse.Appliance, Powerhouse.User,
+  Powerhouse.JsonSerializer, Powerhouse.Logger, Powerhouse.Forms.Home,
+  Powerhouse.Forms.Registration, Powerhouse.FileStream, Powerhouse.SaveData;
 
 type
   TPhfLogin = class(PhForm)
@@ -41,14 +42,17 @@ type
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
-    lnkForgotPassword: TLinkLabel;
     btnLogin: TButton;
+    lblRegister: TLabel;
     procedure btnLoginClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure lblRegisterClick(Sender: TObject);
 
-  public
-    procedure Enable(); override;
-    procedure Disable(); override;
+  private
+    // TODO: If the logged in user has no save data, add them to the save.
+    procedure LoadUserAppliances(var refUser: PhUser; const savePath: string);
+    procedure LoginUser(var refUser: PhUser);
+    procedure CreateSaveFile(const user: PhUser; const savePath: string);
   end;
 
 var
@@ -61,7 +65,7 @@ implementation
 procedure TPhfLogin.btnLoginClick(Sender: TObject);
 var
   userName, pswd: string;
-  userFound: boolean;
+  userFound: bool;
   newUser: PhUser;
 begin
   userName := edtUsername.Text;
@@ -74,8 +78,8 @@ begin
 
     while not TblUsers.Eof do
     begin
-      userFound := (userName = TblUsers[TBL_FIELD_NAME_USERS_USERNAME]) or
-        (userName = TblUsers[TBL_FIELD_NAME_USERS_EMAIL_ADDRESS]);
+      userFound := (userName = TblUsers[PH_TBL_FIELD_NAME_USERS_USERNAME]) or
+        (userName = TblUsers[PH_TBL_FIELD_NAME_USERS_EMAIL_ADDRESS]);
       if userFound then
         break;
 
@@ -84,18 +88,16 @@ begin
 
     if userFound then
     begin
-      newUser := PhUser.Create(TblUsers[TBL_FIELD_NAME_USERS_PK]);
+      newUser := PhUser.Create(TblUsers[PH_TBL_FIELD_NAME_USERS_PK]);
 
       if newUser.CheckPassword(pswd) then
       begin
-        g_CurrentUser := newUser;
-        PhLogger.Info('Welcome %s %s!', [g_CurrentUser.GetForenames(),
-          g_CurrentUser.GetSurname()]);
+        if PhFileStream.IsFile(PH_SAVEFILE_NAME) then
+          LoadUserAppliances(newUser, PH_SAVEFILE_NAME)
+        else
+          CreateSaveFile(newUser, PH_SAVEFILE_NAME);
 
-        TransitionForms(@g_HomeForm);
-
-        // TODO: Load appliances from JSON
-        // TODO: Perform post-login stuff
+        LoginUser(newUser);
       end
       else
       begin
@@ -105,7 +107,7 @@ begin
     end
     else
     begin
-      PhLogger.Error('Username or email address not found');
+      PhLogger.Error('Username or email address not found!');
       edtUsername.SetFocus();
     end;
 
@@ -118,20 +120,82 @@ begin
   Quit();
 end;
 
-procedure TPhfLogin.Enable();
+procedure TPhfLogin.lblRegisterClick(Sender: TObject);
+var
+  regForm: TPhfRegistration;
+  newUser: PhUser;
 begin
-  inherited;
+  regForm := TPhfRegistration.Create(Self);
+  regForm.EnableModal();
 
-  Self.Enabled := true;
-  Self.Show();
+  newUser := regForm.GetNewUser();
+
+  if newUser <> nil then
+  begin
+    edtUsername.Text := newUser.GetUsername();
+    edtPassword.Text := '••••••••';
+
+    Sleep(750);
+
+    LoginUser(newUser);
+  end;
+
+  regForm.Free();
 end;
 
-procedure TPhfLogin.Disable();
+procedure TPhfLogin.LoadUserAppliances(var refUser: PhUser;
+  const savePath: string);
+var
+  jsonSrc: string;
+  json: PhJsonSerializer;
+  saveData: PhSaveData;
+  users: PhUsers;
+  user: PhUser;
+  appliances: PhAppliances;
 begin
-  inherited;
+  jsonSrc := PhFileStream.ReadAllText(savePath);
+  json := PhJsonSerializer.Create();
+  saveData := PhSaveData(json.DeserializeJson(jsonSrc));
+  saveData.ToPhUsers(users);
 
-  Self.Hide();
-  Self.Enabled := false;
+  for user in users do
+  begin
+    if user.GetGUID() = refUser.GetGUID() then
+    begin
+      user.GetAppliances(appliances);
+      refUser.SetAppliances(appliances);
+
+      break;
+    end;
+  end;
+end;
+
+procedure TPhfLogin.LoginUser(var refUser: PhUser);
+begin
+  g_CurrentUser := refUser;
+
+  PhLogger.Info('Welcome %s %s!', [g_CurrentUser.GetForenames(),
+    g_CurrentUser.GetSurname()]);
+
+  TransitionForms(@g_HomeForm);
+end;
+
+procedure TPhfLogin.CreateSaveFile(const user: PhUser; const savePath: string);
+var
+  users: PhUsers;
+  saveData: PhSaveData;
+  json: PhJsonSerializer;
+  jsonSrc: string;
+begin
+  SetLength(users, 1);
+  users[0] := user;
+
+  saveData := PhSaveData.Create(users);
+
+  json := PhJsonSerializer.Create();
+  jsonSrc := json.SerializeJson(saveData);
+
+  PhFileStream.WriteAllText(savePath, jsonSrc, PhWriteMode.Overwrite);
 end;
 
 end.

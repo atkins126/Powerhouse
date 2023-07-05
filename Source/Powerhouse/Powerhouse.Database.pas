@@ -27,15 +27,15 @@ unit Powerhouse.Database;
 interface
 
 uses
-  System.SysUtils, Data.DB, Data.Win.ADODB, Powerhouse.Logger;
+  System.SysUtils, Data.DB, Data.Win.ADODB, Powerhouse.Types, Powerhouse.Logger;
 
 type
   PhDatabase = class
   public
-    constructor Create(dbPath: string);
+    constructor Create(const dbPath: string);
     destructor Destroy(); override;
 
-    function RunQuery(sqlQuery: string): Exception;
+    function RunQuery(const sqlQuery: string): EADOError;
 
     function GetPath(): string;
 
@@ -46,20 +46,24 @@ type
     TblUsers: TADOTable;
 
   private
+    procedure OpenTable(var refTable: TADOTable; const tableName: string);
+    procedure Reload();
+
+  private
     m_Path: string;
   end;
 
 const
-  TBL_NAME_APPLIANCES: string = 'tblAppliances';
-  TBL_NAME_TIPS: string = 'tblTips';
-  TBL_NAME_USERS: string = 'tblUsers';
+  PH_TBL_NAME_APPLIANCES = 'tblAppliances';
+  PH_TBL_NAME_TIPS = 'tblTips';
+  PH_TBL_NAME_USERS = 'tblUsers';
 
 var
   g_Database: PhDatabase;
 
 implementation
 
-constructor PhDatabase.Create(dbPath: string);
+constructor PhDatabase.Create(const dbPath: string);
 begin
   m_Path := dbPath;
 
@@ -74,20 +78,9 @@ begin
       Open();
     end;
 
-    TblAppliances := TADOTable.Create(nil);
-    TblAppliances.Connection := Connection;
-    TblAppliances.TableName := TBL_NAME_APPLIANCES;
-    TblAppliances.Open();
-
-    TblTips := TADOTable.Create(nil);
-    TblTips.Connection := Connection;
-    TblTips.TableName := TBL_NAME_TIPS;
-    TblTips.Open();
-
-    TblUsers := TADOTable.Create(nil);
-    TblUsers.Connection := Connection;
-    TblUsers.TableName := TBL_NAME_USERS;
-    TblUsers.Open();
+    OpenTable(TblAppliances, PH_TBL_NAME_APPLIANCES);
+    OpenTable(TblTips, PH_TBL_NAME_TIPS);
+    OpenTable(TblUsers, PH_TBL_NAME_USERS);
 
   except
     on e: Exception do
@@ -116,7 +109,7 @@ begin
   Connection := nil;
 end;
 
-function PhDatabase.RunQuery(sqlQuery: string): Exception;
+function PhDatabase.RunQuery(const sqlQuery: string): EADOError;
 var
   query: TADOQuery;
 begin
@@ -130,18 +123,43 @@ begin
     try
       query.ExecSQL();
     except
-      on e: Exception do
+      on e: EADOError do
         Result := e;
     end;
 
   finally
     query.Free();
   end;
+
+  Reload();
 end;
 
 function PhDatabase.GetPath(): string;
 begin
   Result := m_Path;
+end;
+
+procedure PhDatabase.OpenTable(var refTable: TADOTable;
+  const tableName: string);
+begin
+  refTable := TADOTable.Create(nil);
+  refTable.Connection := Connection;
+  refTable.tableName := tableName;
+  refTable.Open();
+end;
+
+procedure PhDatabase.Reload();
+begin
+  TblAppliances.Close();
+  TblTips.Close();
+  TblUsers.Close();
+
+  Connection.Close();
+  Connection.Open();
+
+  TblAppliances.Open();
+  TblTips.Open();
+  TblUsers.Open();
 end;
 
 end.

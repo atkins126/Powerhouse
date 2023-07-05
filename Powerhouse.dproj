@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{C6C85582-2490-4E82-8924-1C087C2172B0}</ProjectGuid>
-        <ProjectVersion>19.2</ProjectVersion>
+        <ProjectVersion>19.5</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
@@ -124,12 +124,20 @@ $(PostBuildEvent)]]></PostBuildEvent>
             <Form>g_HomeForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Source\Powerhouse\Forms\Powerhouse.Forms.Registration.pas">
+            <Form>g_RegistrationForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <DCCReference Include="Source\Powerhouse\Powerhouse.Database.pas"/>
         <DCCReference Include="Source\Powerhouse\Powerhouse.Appliance.pas"/>
         <DCCReference Include="Source\Powerhouse\Powerhouse.User.pas"/>
         <DCCReference Include="Source\Powerhouse\Powerhouse.JsonSerializer.pas"/>
         <DCCReference Include="Source\Powerhouse\Powerhouse.Logger.pas"/>
         <DCCReference Include="Source\Powerhouse\Powerhouse.Form.pas"/>
+        <DCCReference Include="Source\Powerhouse\Powerhouse.FileStream.pas"/>
+        <DCCReference Include="Source\Powerhouse\Powerhouse.SaveData.pas"/>
+        <DCCReference Include="Source\Powerhouse\Powerhouse.Validator.pas"/>
+        <DCCReference Include="Source\Powerhouse\Powerhouse.Types.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -156,26 +164,15 @@ $(PostBuildEvent)]]></PostBuildEvent>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Assets\Powerhouse_UWP_44p.png" Configuration="Debug" Class="UWP_DelphiLogo44"/>
                 <DeployFile LocalName="bin\Win32\Debug\Powerhouse.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>Powerhouse.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Assets\Powerhouse_UWP_150p.png" Configuration="Debug" Class="UWP_DelphiLogo150">
-                    <Platform Name="Win32">
-                        <RemoteDir>Assets\</RemoteDir>
-                        <RemoteName>Logo150x150.png</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Assets\Powerhouse_UWP_44p.png" Configuration="Debug" Class="UWP_DelphiLogo44">
-                    <Platform Name="Win32">
-                        <RemoteDir>Assets\</RemoteDir>
-                        <RemoteName>Logo44x44.png</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
+                <DeployFile LocalName="Assets\Powerhouse_UWP_150p.png" Configuration="Debug" Class="UWP_DelphiLogo150"/>
+                <DeployFile LocalName="bin\Win32\Debug\Powerhouse.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="iOSSimulator">
                         <Operation>1</Operation>
@@ -186,6 +183,16 @@ $(PostBuildEvent)]]></PostBuildEvent>
                     </Platform>
                     <Platform Name="Win32">
                         <Operation>0</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="AndroidClasses">
+                    <Platform Name="Android">
+                        <RemoteDir>classes</RemoteDir>
+                        <Operation>64</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>classes</RemoteDir>
+                        <Operation>64</Operation>
                     </Platform>
                 </DeployClass>
                 <DeployClass Name="AndroidClassesDexFile">
@@ -937,8 +944,10 @@ $(PostBuildEvent)]]></PostBuildEvent>
                     </Platform>
                 </DeployClass>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="iOSSimARM64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
+                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="OSXARM64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Linux64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
@@ -963,7 +972,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
+        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -971,7 +980,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
+        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
@@ -979,7 +988,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
+        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
@@ -987,7 +996,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
+        <PostBuildEvent>rmdir &quot;$(OUTPUTDIR)Assets&quot; /s /q &amp;&amp;xcopy &quot;$(PROJECTDIR)\Assets&quot; &quot;$(OUTPUTDIR)Assets&quot; /E /I /R</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>

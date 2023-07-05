@@ -27,54 +27,56 @@ unit Powerhouse.User;
 interface
 
 uses
-  System.SysUtils, System.StrUtils, System.Math, System.Hash,
+  System.SysUtils, System.StrUtils, System.Math, System.Hash, Powerhouse.Types,
   Powerhouse.Appliance, Powerhouse.Database, Powerhouse.Logger;
 
 type
   PhUser = class
   public
-    constructor Create(guid: string); overload;
-    constructor Create(usr, pswd, names, surname: string;
-      appliances: PhAppliances); overload;
+    constructor Create(const guid: PhGUID);
 
-    function CheckPassword(pswd: string): boolean;
+    class function CreateUserAccount(const usr, pswd, email, names,
+      surname: string): PhUser;
 
-    function GetGUID(): string;
+    function CheckPassword(const pswd: string): bool;
+
+    function GetGUID(): PhGUID;
 
     function GetUsername(): string;
-    procedure SetUsername(newUsrName: string);
+    procedure SetUsername(const newUsrName: string);
 
     function GetEmailAddress(): string;
-    procedure SetEmailAddress(newAddress: string);
+    procedure SetEmailAddress(const newAddress: string);
 
     function GetForenames(): string;
-    procedure SetForenames(newNames: string);
+    procedure SetForenames(const newNames: string);
 
     function GetSurname(): string;
-    procedure SetSurname(newSurname: string);
+    procedure SetSurname(const newSurname: string);
 
     function GetPasswordHash(): string;
-    procedure SetPassword(newPswd: string);
+    procedure SetPassword(const newPswd: string);
 
-    procedure GetAppliances(out Result: PhAppliances);
+    procedure GetAppliances(out outResult: PhAppliances);
+    procedure SetAppliances(const appliances: PhAppliances);
 
-    procedure GetApplianceByName(name: string; out Result: PhAppliance);
-    procedure GetApplianceByID(id: uint32; out Result: PhAppliance);
+    procedure GetApplianceByName(const name: string;
+      out outResult: PhAppliance);
+    procedure GetApplianceByGUID(const guid: PhGUID;
+      out outResult: PhAppliance);
 
   private
-    function HashPassword(pswd: string): string;
-    function NewGUID(): string;
+    class function HashPassword(const pswd: string): string;
 
     procedure UpdateInDatabase();
 
   private
-    m_GUID: string;
+    m_GUID: PhGUID;
     m_Username: string;
     m_EmailAddress: string;
     m_Forenames: string;
     m_Surname: string;
     m_PasswordHash: string;
-
     m_Appliances: PhAppliances;
   end;
 
@@ -82,21 +84,21 @@ type
   PhUsers = TArray<PhUser>;
 
 const
-  TBL_FIELD_NAME_USERS_PK: string = 'UserGUID';
-  TBL_FIELD_NAME_USERS_USERNAME: string = 'Username';
-  TBL_FIELD_NAME_USERS_EMAIL_ADDRESS: string = 'EmailAddress';
-  TBL_FIELD_NAME_USERS_FORENAMES: string = 'Forenames';
-  TBL_FIELD_NAME_USERS_SURNAME: string = 'Surname';
-  TBL_FIELD_NAME_USERS_PASSWORD_HASH: string = 'PasswordHash';
+  PH_TBL_FIELD_NAME_USERS_PK = 'UserGUID';
+  PH_TBL_FIELD_NAME_USERS_USERNAME = 'Username';
+  PH_TBL_FIELD_NAME_USERS_EMAIL_ADDRESS = 'EmailAddress';
+  PH_TBL_FIELD_NAME_USERS_FORENAMES = 'Forenames';
+  PH_TBL_FIELD_NAME_USERS_SURNAME = 'Surname';
+  PH_TBL_FIELD_NAME_USERS_PASSWORD_HASH = 'PasswordHash';
 
 var
   g_CurrentUser: PhUser;
 
 implementation
 
-constructor PhUser.Create(guid: string);
+constructor PhUser.Create(const guid: PhGUID);
 var
-  foundGUID: boolean;
+  foundGUID: bool;
 begin
   m_GUID := guid;
   foundGUID := false;
@@ -105,10 +107,9 @@ begin
   begin
     TblUsers.First();
 
-    // Find the record in the table where UserGUID = m_GUID.
     while not TblUsers.Eof do
     begin
-      foundGUID := m_GUID = TblUsers[TBL_FIELD_NAME_USERS_PK];
+      foundGUID := m_GUID = TblUsers[PH_TBL_FIELD_NAME_USERS_PK];
       if foundGUID then
         break;
 
@@ -117,11 +118,11 @@ begin
 
     if foundGUID then
     begin
-      m_Username := TblUsers[TBL_FIELD_NAME_USERS_USERNAME];
-      m_EmailAddress := TblUsers[TBL_FIELD_NAME_USERS_EMAIL_ADDRESS];
-      m_Forenames := TblUsers[TBL_FIELD_NAME_USERS_FORENAMES];
-      m_Surname := TblUsers[TBL_FIELD_NAME_USERS_SURNAME];
-      m_PasswordHash := TblUsers[TBL_FIELD_NAME_USERS_PASSWORD_HASH];
+      m_Username := TblUsers[PH_TBL_FIELD_NAME_USERS_USERNAME];
+      m_EmailAddress := TblUsers[PH_TBL_FIELD_NAME_USERS_EMAIL_ADDRESS];
+      m_Forenames := TblUsers[PH_TBL_FIELD_NAME_USERS_FORENAMES];
+      m_Surname := TblUsers[PH_TBL_FIELD_NAME_USERS_SURNAME];
+      m_PasswordHash := TblUsers[PH_TBL_FIELD_NAME_USERS_PASSWORD_HASH];
     end
     else
     begin
@@ -132,31 +133,43 @@ begin
       m_PasswordHash := '';
     end;
 
-    // NOTE: m_Appliances is not being set yet. JSON file is needed to store active appliances.
     TblUsers.First();
   end;
 end;
 
-constructor PhUser.Create(usr, pswd, names, surname: string;
-  appliances: PhAppliances);
+class function PhUser.CreateUserAccount(const usr, pswd, email, names,
+  surname: string): PhUser;
+var
+  query, passwordHash, myEmail: string;
+  guid: PhGUID;
+  e: Exception;
 begin
-  // If this constructor is invoked it is assumed that the program is attempting to create a new
-  // user to be inserted into the database.
+  guid := PhGUID.Create();
+  passwordHash := HashPassword(pswd);
+  myEmail := LowerCase(email);
 
-  m_GUID := NewGUID();
-  m_Username := usr;
-  m_PasswordHash := HashPassword(pswd);
-  m_Forenames := names;
-  m_Surname := surname;
-  m_Appliances := appliances;
+  query := Format('INSERT INTO %s (%s, %s, %s, %s, %s, %s)' +
+    'VALUES (''%s'', ''%s'', ''%s'', ''%s'', ''%s'', ''%s'');',
+    [PH_TBL_NAME_USERS, PH_TBL_FIELD_NAME_USERS_PK,
+    PH_TBL_FIELD_NAME_USERS_USERNAME, PH_TBL_FIELD_NAME_USERS_EMAIL_ADDRESS,
+    PH_TBL_FIELD_NAME_USERS_FORENAMES, PH_TBL_FIELD_NAME_USERS_SURNAME,
+    PH_TBL_FIELD_NAME_USERS_PASSWORD_HASH, guid.ToString(), usr, myEmail, names,
+    surname, passwordHash]);
+
+  e := g_Database.RunQuery(query);
+
+  if e <> nil then
+    PhLogger.Error('Error creating new user in database: %s', [e.Message]);
+
+  Result := Create(guid);
 end;
 
-function PhUser.CheckPassword(pswd: string): boolean;
+function PhUser.CheckPassword(const pswd: string): bool;
 begin
   Result := HashPassword(pswd) = m_PasswordHash;
 end;
 
-function PhUser.GetGUID(): string;
+function PhUser.GetGUID(): PhGUID;
 begin
   Result := m_GUID;
 end;
@@ -166,7 +179,7 @@ begin
   Result := m_Username;
 end;
 
-procedure PhUser.SetUsername(newUsrName: string);
+procedure PhUser.SetUsername(const newUsrName: string);
 begin
   m_Username := newUsrName;
 
@@ -178,7 +191,7 @@ begin
   Result := m_EmailAddress;
 end;
 
-procedure PhUser.SetEmailAddress(newAddress: string);
+procedure PhUser.SetEmailAddress(const newAddress: string);
 begin
   m_EmailAddress := newAddress;
 
@@ -190,7 +203,7 @@ begin
   Result := m_Forenames;
 end;
 
-procedure PhUser.SetForenames(newNames: string);
+procedure PhUser.SetForenames(const newNames: string);
 begin
   m_Forenames := newNames;
 
@@ -202,7 +215,7 @@ begin
   Result := m_Surname;
 end;
 
-procedure PhUser.SetSurname(newSurname: string);
+procedure PhUser.SetSurname(const newSurname: string);
 begin
   m_Surname := newSurname;
 
@@ -214,90 +227,84 @@ begin
   Result := m_PasswordHash;
 end;
 
-procedure PhUser.SetPassword(newPswd: string);
+procedure PhUser.SetPassword(const newPswd: string);
 begin
   m_PasswordHash := HashPassword(newPswd);
 
   UpdateInDatabase();
 end;
 
-procedure PhUser.GetAppliances(out Result: PhAppliances);
+procedure PhUser.GetAppliances(out outResult: PhAppliances);
 begin
-  Result := m_Appliances;
+  outResult := m_Appliances;
 end;
 
-procedure PhUser.GetApplianceByName(name: string; out Result: PhAppliance);
+procedure PhUser.SetAppliances(const appliances: PhAppliances);
+begin
+  m_Appliances := appliances;
+end;
+
+procedure PhUser.GetApplianceByName(const name: string;
+  out outResult: PhAppliance);
 var
-  i: integer;
+  i: int;
 begin
   for i := Low(m_Appliances) to High(m_Appliances) do
   begin
     if m_Appliances[i].GetName() = name then
     begin
-      Result := m_Appliances[i];
+      outResult := m_Appliances[i];
       break;
     end;
   end;
 end;
 
-procedure PhUser.GetApplianceByID(id: uint32; out Result: PhAppliance);
+procedure PhUser.GetApplianceByGUID(const guid: PhGUID;
+  out outResult: PhAppliance);
 var
-  i: integer;
+  i: int;
 begin
   for i := Low(m_Appliances) to High(m_Appliances) do
   begin
-    if m_Appliances[i].GetID() = id then
+    if m_Appliances[i].GetGUID() = guid then
     begin
-      Result := m_Appliances[i];
+      outResult := m_Appliances[i];
       break;
     end;
   end;
 end;
 
-function PhUser.HashPassword(pswd: string): string;
+class function PhUser.HashPassword(const pswd: string): string;
 var
   MD5: THashMD5;
-  sHash, sDynamicSalt: string;
+  hash, dynamicSalt: string;
 begin
   MD5 := THashMD5.Create();
 
-  sHash := MD5.GetHashString(pswd);
-  sDynamicSalt := MD5.GetHashString(IntToStr(Length(pswd)));
-  sHash := sHash.Insert(Length(pswd), sDynamicSalt);
-  sHash := MD5.GetHashString(sHash) + '==';
+  hash := MD5.GetHashString(pswd);
+  dynamicSalt := MD5.GetHashString(IntToStr(Length(pswd)));
+  hash := hash.Insert(Length(pswd), dynamicSalt);
+  hash := MD5.GetHashString(hash) + '==';
 
-  Result := sHash;
-end;
-
-function PhUser.NewGUID(): string;
-var
-  guid: TGUID;
-  sHexGUID: string;
-begin
-  CreateGUID(guid);
-  sHexGUID := GUIDToString(guid);
-
-  sHexGUID := StringReplace(sHexGUID, '{', '', [rfReplaceAll]);
-  sHexGUID := StringReplace(sHexGUID, '}', '', [rfReplaceAll]);
-  sHexGUID := StringReplace(sHexGUID, '-', '', [rfReplaceAll]);
-
-  Result := sHexGUID;
+  Result := hash;
 end;
 
 procedure PhUser.UpdateInDatabase();
 var
-  sQuery: string;
+  query: string;
   e: Exception;
 begin
-  sQuery := Format('UPDATE %s' + #13#10 +
+  query := Format('UPDATE %s' + #13#10 +
     'SET %s = ''%s'', %s = ''%s'', %s = ''%s'', %s = ''%s'', %s = ''%s''' +
-    #13#10 + 'WHERE %s = %s', [TBL_NAME_USERS, TBL_FIELD_NAME_USERS_USERNAME,
-    m_Username, TBL_FIELD_NAME_USERS_EMAIL_ADDRESS, m_EmailAddress,
-    TBL_FIELD_NAME_USERS_FORENAMES, m_Forenames, TBL_FIELD_NAME_USERS_SURNAME,
-    m_Surname, TBL_FIELD_NAME_USERS_PASSWORD_HASH, m_PasswordHash,
-    TBL_FIELD_NAME_USERS_PK, m_GUID]);
+    #13#10 + 'WHERE %s = %s', [PH_TBL_NAME_USERS,
+    PH_TBL_FIELD_NAME_USERS_USERNAME, m_Username,
+    PH_TBL_FIELD_NAME_USERS_EMAIL_ADDRESS, m_EmailAddress,
+    PH_TBL_FIELD_NAME_USERS_FORENAMES, m_Forenames,
+    PH_TBL_FIELD_NAME_USERS_SURNAME, m_Surname,
+    PH_TBL_FIELD_NAME_USERS_PASSWORD_HASH, m_PasswordHash,
+    PH_TBL_FIELD_NAME_USERS_PK, m_GUID.ToString()]);
 
-  e := g_Database.RunQuery(sQuery);
+  e := g_Database.RunQuery(query);
 
   if e <> nil then
     PhLogger.Error('Error updating database: %s', [e.Message]);
